@@ -1,0 +1,138 @@
+options(Seurat.object.assay.version = 'v3')
+library(CytoTRACE2)
+library(Seurat)
+
+P20<-readRDS("./com_p20_anno.RDS")
+
+Idents(P20)<-"new.cell"
+
+Tcs<-subset(P20,idents=c("CD8-Tn","CD8-Tprolif","CD8-Teff","Treg","Tfh","NKT"))
+
+NKs<-subset(P20,idents=c("NK-Prolif","NK-Cyto","NK-Trans","NK-Term"))
+
+Tcs_result <- cytotrace2(Tcs,species = "mouse",is_seurat = T)
+
+saveRDS(Tcs_result,"Tcs_cytotrace2.RDS")
+
+
+NKs_result <- cytotrace2(NKs,species = "mouse",is_seurat = T)
+
+
+saveRDS(NKs_result,"Nks_cytotrace2.RDS")
+
+
+setwd("C:/Users/34992/OneDrive/桌面/df/newpaper_cytotrace")
+library(Seurat)
+library(phateR)
+library(reticulate)
+library(ggplot2)
+library(ggsci)
+use_python("C:/Users/34992/AppData/Local/Programs/Python/Python39/")
+
+col21<-c("#51236c","#dd5165", "#ceb2c0","#e72128","#e888b4","#b5cdcd","#339aa0","#5163ac",
+         "#155185","#a4a839","#3e3d1a","#e94f9e","#705da9","#231d65","#d6a0c9",
+         "#c8ba8b","#f7c392","#a23726","#4ebdea","#630d18")
+le123<-c("Neutrophils", "Mast", "Macrophage", "cDC", "pDC", "NK-Prolif","NK-Cyto" , "NK-Trans",
+         "NK-Term","CD8-Tn","CD8-Tprolif","CD8-Teff","Treg","Th17","Tfh",
+         "NKT","Bcs","B-Prolif","Tumor")
+
+
+Tcs<-readRDS("./Tcs_cytotrace2.RDS")
+
+
+#############################################################Tcs
+
+
+
+lym<-Tcs
+seurat_data <- as.data.frame(lym@assays$RNA@data)
+
+phate_data_input <- t(seurat_data)
+
+phate_output <- phate(phate_data_input,gamma=-1,t=120) 
+phate_output$embedding<-phate_output$embedding*100
+
+
+lym[["PHATE"]] <- CreateDimReducObject(embeddings = phate_output$embedding, key = "PHATE_", assay = DefaultAssay(lym))
+DimPlot(lym,reduction = "PHATE",group.by = "group")+scale_color_manual(values = c("#5F559B99","#BB002199"))
+ggsave(filename = "Tcs_group_PHATE_P20.pdf",width=7,height=5.5)
+
+
+DimPlot(lym,reduction = "PHATE",label = F,group.by = "new.cell",split.by = "group")+scale_color_manual(values = c("#a4a839","#3e3d1a","#e94f9e","#705da9","#231d65","#d6a0c9",
+                                                                                                                  "#c8ba8b"))
+ggsave(filename = "Tcs_cells_PHATE_P20vsCtrl.pdf",width=9.5,height=4.8)
+
+
+
+FeaturePlot(lym,features = "CytoTRACE2_Score",split.by = "group",reduction = "PHATE",raster=NULL,cols = c("navy","green3","yellow"))
+ggsave(filename = "Tcs_cytotrace_P20vsCtrl.pdf",width=9.5,height=4.8)
+
+DimPlot(lym,group.by = "CytoTRACE2_Potency",split.by = "group",reduction = "PHATE")+scale_color_d3()
+ggsave(filename = "Tcs_cytotrace_potency_P20vsCtrl.pdf",width=9.5,height=4.8)
+
+cell.prop<- as.data.frame(prop.table(table(lym@meta.data$CytoTRACE2_Potency,lym@meta.data$group)))
+# cell.prop$Freq<-cell.prop$Freq*100 
+colnames(cell.prop)<-c("clusters","type","Percentages")
+
+cell.prop$type <- factor(cell.prop$type, levels = c( "Control","P20"))
+
+
+ct1<-ggplot(cell.prop,aes(type,Percentages,fill=clusters))+
+  geom_bar(stat = "identity",position="fill")+
+  ggtitle("")+
+  theme_bw()+
+  theme(axis.ticks.length=unit(0.08,"cm"))+
+  guides(fill=guide_legend(title=NULL))+scale_color_manual(values = c("#5F559B99","#BB002199"))
+ggsave(filename="Fig.2E.pdf",ct1,width=3.5,height=5)
+export::graph2ppt(file="Tcs_phate_proporation.pptx",ct1,width=3.4,height=6)
+
+#############################################################Nks
+
+NKs<-readRDS("./Nks_cytotrace2.RDS")
+
+
+nks<-NKs
+seurat_data <- as.data.frame(nks@assays$RNA@data)
+
+
+phate_data_input <- t(seurat_data)
+
+phate_output <- phate(phate_data_input,gamma=1,t = 120) 
+phate_output$embedding<-phate_output$embedding*100
+
+
+nks[["PHATE"]] <- CreateDimReducObject(embeddings = phate_output$embedding, key = "PHATE_", assay = DefaultAssay(lym))
+DimPlot(nks,reduction = "PHATE",group.by = "group")+scale_color_manual(values = c("#5F559B99","#BB002199"))
+
+
+
+ggsave(filename = "NKs_group_PHATE_P20.pdf",width=7,height=5.5)
+
+DimPlot(nks,reduction = "PHATE",label = F,group.by = "new.cell",split.by = "group")+scale_color_manual(values = c("#b5cdcd","#339aa0","#5163ac",
+                                                                                                                  "#155185"))
+ggsave(filename = "NKs_cells_PHATE_P20vsCtrl.pdf",width=9.5,height=4.8)
+
+
+
+FeaturePlot(nks,features = "CytoTRACE2_Score",split.by = "group",reduction = "PHATE",raster=NULL,cols = c("navy","green3","yellow"))
+ggsave(filename = "NKs_cytotrace_P20vsCtrl.pdf",width=9.5,height=4.8)
+
+DimPlot(nks,group.by = "CytoTRACE2_Potency",split.by = "group",reduction = "PHATE")+scale_color_d3()
+ggsave(filename = "Nks_cytotrace_potency_P20vsCtrl.pdf",width=9.5,height=4.8)
+
+cell.prop<- as.data.frame(prop.table(table(nks@meta.data$CytoTRACE2_Potency,nks@meta.data$group)))
+# cell.prop$Freq<-cell.prop$Freq*100 
+colnames(cell.prop)<-c("clusters","type","Percentages")
+
+cell.prop$type <- factor(cell.prop$type, levels = c("Control","P20" ))
+
+
+
+ct1<-ggplot(cell.prop,aes(type,Percentages,fill=clusters))+
+  geom_bar(stat = "identity",position="fill")+
+  ggtitle("")+
+  theme_bw()+
+  theme(axis.ticks.length=unit(0.08,"cm"))+
+  guides(fill=guide_legend(title=NULL))+scale_color_manual(values = c("#5F559B99","#BB002199"))
+ggsave(filename="Nks_phate_proporation.pdf",ct1,width=3.5,height=5)
+export::graph2ppt(file="Nks_phate_proporation.pptx",ct1,width=3.4,height=6)

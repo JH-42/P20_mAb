@@ -1,0 +1,59 @@
+
+options(Seurat.object.assay.version = 'v3')
+
+
+library(Seurat)
+library(RColorBrewer)
+library(pheatmap)
+library(ggplot2)
+
+P20<-readRDS("../com_p20_anno.RDS")
+
+
+all_cyto_zcore<-read.csv("./samples/p20/output.Zscore",
+                         sep = "\t",
+                         header = T,
+                         row.names = 1,
+                         check.names = F)
+
+
+all_cyto <- CreateSeuratObject(all_cyto_zcore)
+
+
+all_cyto@meta.data<-P20@meta.data
+
+Idents(all_cyto)<-"group"
+
+
+ctrl<-subset(all_cyto,idents="Control")
+mab<-subset(all_cyto,idents="P20")
+
+
+Idents(ctrl)<-"new.cell"
+Idents(mab)<-"new.cell"
+
+
+
+ctrl_cyto_avg <- AverageExpression(ctrl, group.by = "new.cell",return.seurat = F,slot = "counts")
+mab_cyto_avg <- AverageExpression(mab, group.by = "new.cell",return.seurat = F,slot = "counts")
+
+
+matrix1 <- mab_cyto_avg$RNA
+matrix2 <- ctrl_cyto_avg$RNA
+
+diff_matrix <- matrix1 - matrix2
+
+relative_change <- (matrix1 - matrix2) / matrix2
+
+
+diff_df <- as.data.frame(as.matrix(diff_matrix))
+relative_change_df <- as.data.frame(as.matrix(relative_change))
+
+bk<-unique(c(seq(-1,1,length=100)))
+
+pheatmap(relative_change_df,breaks = bk,scale = "row",
+         color = colorRampPalette(c("#5F559B99", "white", "#BB002199"))(100),
+         cluster_rows = TRUE, cluster_cols = F,treeheight_row = 4,
+         main = "Cytokine Activity by Cell Type")
+
+

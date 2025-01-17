@@ -1,0 +1,128 @@
+
+##change the fold and file name to ctrl_1,2,3, p20_1,2,3
+library(tidyr)
+
+barcode_mapping <- read.csv("./p20_3/filtered_contig_annotations_tcrdist_clones.tsv.barcode_mapping.tsv", sep = "\t", header = TRUE)
+
+barcode_mapping_long <- barcode_mapping %>%
+  separate_rows(barcodes, sep = ",") # separate the barcodes using command.
+
+# save as new tsv
+write.csv(barcode_mapping_long, "processed_barcode_mapping.csv", row.names = FALSE, quote = FALSE)
+
+
+contig_data <- read.csv("./p20_3/filtered_contig_annotations_tcrdist_clones.tsv", sep = "\t", header = TRUE)
+
+
+merged_data <- merge(barcode_mapping_long, contig_data, by.x = "clone_id", by.y = "clone_id", all.x = TRUE)
+
+
+merged_data<-merged_data[,c("barcodes","va_gene","ja_gene","cdr3a","cdr3a_nucseq","vb_gene","jb_gene","cdr3b","cdr3b_nucseq")]
+
+colnames(merged_data)<-c("barcodes","va","ja","cdr3a","cdr3a_nucseq","vb","jb","cdr3b","cdr3b_nucseq")
+
+s1<-read.csv("../step1_change_all_data/P20_3_TCR_anno_data.tsv",sep="\t")
+
+library(dplyr)
+
+# filter table1 in all data
+filtered_table1 <- merged_data %>%
+  filter(barcodes %in% s1[, 1])
+
+write.csv(filtered_table1,"../step2_runconga/p20_3/filter_anno.csv")
+
+
+
+
+########################################################
+
+
+library(Seurat)
+library(dplyr)
+
+P20<-readRDS("D:/Dafei Chai/P20-mAb-scRNA-seq/Analysis data/analysis/RDS/com_p20_anno.RDS")
+
+c1<-read.csv("./Ctrl_1/filter_anno.csv",sep = ",")
+c2<-read.csv("./Ctrl_2/filter_anno.csv",sep = ",")
+c3<-read.csv("./Ctrl_3/filter_anno.csv",sep = ",")
+
+p1<-read.csv("./p20_1/filter_anno.csv",sep = ",")
+p2<-read.csv("./p20_2/filter_anno.csv",sep = ",")
+p3<-read.csv("./p20_3/filter_anno.csv",sep = ",")
+
+
+
+ctrl_merge<- rbind(c1,c2,c3)
+
+p20_merge<-rbind(p1,p2,p3)
+
+colnames(ctrl_merge)[colnames(ctrl_merge) == "X"] <- ""
+write.table(ctrl_merge, "Ctrl_TCR_anno_data.tsv", sep = "\t", row.names = FALSE, quote = FALSE)
+
+colnames(p20_merge)[colnames(p20_merge) == "X"] <- ""
+write.table(p20_merge, "P20_TCR_anno_data.tsv", sep = "\t", row.names = FALSE, quote = FALSE)
+
+
+meta<-P20@meta.data
+
+rm(P20)
+
+meta$cellname<-rownames(meta)
+
+meta$cellname <- gsub("^(Ctrl_1_|Ctrl_2_|Ctrl_3_|P20_1_|P20_2_|P20_3_)", "", meta$cellname)
+
+ctrl_meta<-meta[meta$group %in% "Control", ]
+
+p20_meta<-meta[meta$group %in% "P20", ]
+
+
+ctrl_CD8Tn<-meta[meta$new.cell %in% "CD8-Tn", ]
+filtered_ctrl_CD8Tn <- ctrl_merge[ctrl_merge$X %in% ctrl_CD8Tn$cellname, ]
+colnames(filtered_ctrl_CD8Tn)[colnames(filtered_ctrl_CD8Tn) == "X"] <- ""
+write.table(filtered_ctrl_CD8Tn, "Ctrl_CD8_Tn_TCR_conga.tsv", sep = "\t", row.names = FALSE, quote = FALSE)
+
+
+p20_CD8Tn<-meta[meta$new.cell %in% "CD8-Tn", ]
+filtered_ctrl_CD8Tn <- ctrl_merge[ctrl_merge$X %in% p20_CD8Tn$cellname, ]
+colnames(filtered_ctrl_CD8Tn)[colnames(filtered_ctrl_CD8Tn) == "X"] <- ""
+write.table(filtered_ctrl_CD8Tn, "Ctrl_CD8_Tn_TCR_conga.tsv", sep = "\t", row.names = FALSE, quote = FALSE)
+
+ctrl_CD8Tef<-meta[meta$new.cell %in% "CD8-Teff", ]
+
+p20_CD8Tef<-meta[meta$new.cell %in% "CD8-Teff", ]
+
+ctrl_CD8Tpro<-meta[meta$new.cell %in% "CD8-Tprolif", ]
+
+p20_CD8Tpro<-meta[meta$new.cell %in% "CD8-Tprolif", ]
+
+
+groups <- c("Ctrl", "P20")
+cell_types <- c("CD8-Tn", "CD8-Teff", "CD8-Tprolif")
+
+for (group in groups) {
+  for (cell_type in cell_types) {
+    
+    filtered_meta <- meta[meta$new.cell %in% cell_type, ]
+    
+    filtered_data <- ctrl_merge[ctrl_merge$X %in% filtered_meta$cellname, ]
+    
+    colnames(filtered_data)[colnames(filtered_data) == "X"] <- ""
+    
+    output_file <- paste0(group, "_", cell_type, "_TCR_conga.tsv")
+    write.table(filtered_data, output_file, sep = "\t", row.names = FALSE, quote = FALSE)
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+

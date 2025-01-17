@@ -1,0 +1,62 @@
+
+setwd("D:/Dafei Chai/P20-mAb-scRNA-seq/Analysis data/analysis/RDS/TCR/motif/step1_change_all_data")
+library(dplyr)
+
+for (i in c("Ctrl_1","Ctrl_2","Ctrl_3","P20_1","P20_2","P20_3")) {
+
+ctrl1<-read.csv(paste0("D:/Dafei Chai/P20-mAb-scRNA-seq/Analysis data/analysis/RDS/TCR/raw/",i,"/filtered_contig_annotations.csv"),
+                header = T,sep = ",")
+
+tra_data <- ctrl1 %>% filter(chain == "TRA")
+
+trb_data <- ctrl1 %>% filter(chain == "TRB")
+
+merged_data <- full_join(
+  tra_data %>% select(barcode, v_gene, j_gene, cdr3, cdr3_nt),
+  trb_data %>% select(barcode, v_gene, j_gene, cdr3, cdr3_nt),
+  by = "barcode",
+  suffix = c("_TRA", "_TRB")
+)
+
+final_data <- merged_data %>%
+  rename(
+    va = v_gene_TRA,
+    ja = j_gene_TRA,
+    cdr3a = cdr3_TRA,
+    cdr3a_nucseq = cdr3_nt_TRA,
+    vb = v_gene_TRB,
+    jb = j_gene_TRB,
+    cdr3b = cdr3_TRB,
+    cdr3b_nucseq = cdr3_nt_TRB
+  )
+
+
+colnames(final_data)[colnames(final_data) == "barcode"] <- ""
+
+final_data
+
+write.table(final_data, paste0(i,"_TCR_anno_data.tsv"), sep = "\t", row.names = FALSE, quote = FALSE)
+}
+
+###############################
+c1<-read.csv("./Ctrl_1_TCR_anno_data.tsv",sep = "\t")
+c2<-read.csv("./Ctrl_2_TCR_anno_data.tsv",sep = "\t")
+c3<-read.csv("./Ctrl_3_TCR_anno_data.tsv",sep = "\t")
+
+p1<-read.csv("./P20_1_TCR_anno_data.tsv",sep = "\t")
+p2<-read.csv("./P20_2_TCR_anno_data.tsv",sep = "\t")
+p3<-read.csv("./P20_3_TCR_anno_data.tsv",sep = "\t")
+
+
+
+ctrl_merge<- rbind(c1,c2,c3)
+
+p20_merge<-rbind(p1,p2,p3)
+
+colnames(ctrl_merge)[colnames(ctrl_merge) == "X"] <- ""
+write.table(ctrl_merge, "Ctrl_TCR_anno_data.tsv", sep = "\t", row.names = FALSE, quote = FALSE)
+
+colnames(p20_merge)[colnames(p20_merge) == "X"] <- ""
+write.table(p20_merge, "P20_TCR_anno_data.tsv", sep = "\t", row.names = FALSE, quote = FALSE)
+
+

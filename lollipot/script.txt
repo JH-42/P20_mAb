@@ -1,0 +1,145 @@
+library(maftools)
+
+laml_mc3 = tcgaLoad(study = c("LUAD","BRCA","COAD","PAAD","PRAD"))
+
+tp53_mafs <- lapply(laml_mc3, function(maf) {
+  maf_data <- maf@data
+  
+  maf_data <- as.data.frame(lapply(maf_data, function(col) {
+    if (is.character(col)) {
+      Encoding(col) <- "UTF-8"
+      col <- iconv(col, from = "UTF-8", to = "UTF-8", sub = "")
+    }
+    return(col)
+  }))
+  
+  new_maf <- read.maf(maf_data)
+  
+  subsetMaf(maf = new_maf, genes = "TP53")
+})
+
+merged_maf <- merge_mafs(tp53_mafs)
+
+
+
+tp53_mutations <- subsetMaf(maf = merged_maf, genes = "TP53")
+
+
+mutation_frequency <- as.data.frame(table(tp53_mutations@data$HGVSp_Short))
+colnames(mutation_frequency) <- c("Mutation", "Frequency")
+
+
+high_frequency_mutations <- mutation_frequency[mutation_frequency$Frequency > 10, ]
+annotated_mutations <- high_frequency_mutations
+annotated_mutations$Label <- paste0(annotated_mutations$Mutation, " (", annotated_mutations$Frequency, ")")
+
+top10_mutations <- mutation_frequency[order(-mutation_frequency$Frequency), ][1:10, ]
+print(top10_mutations)
+
+
+lollipopPlot(maf = merged_maf, gene = "TP53", AACol = "HGVSp_Short",
+             showMutationRate = TRUE,
+             labelPos = c(175,273,248,213,282,248,196,245,220))
+# oncoplot(maf = merged_maf, top = 1)
+# 
+# lollipopPlot(maf = merged_maf, gene = "TP53", AACol = "HGVSp_Short",
+#              showMutationRate = TRUE,
+#              labelPos = c(175,196,213,245,248,273,282,342,331.220))
+
+ggsave(filename = "./analysis/RDS/tcga_lollipot/all_muataion_top10.pdf",width = 8.7,height = 3.7)
+
+export::graph2ppt(file="D:/Dafei Chai/P20-mAb-scRNA-seq/Analysis data/analysis/RDS/tcga_lollipot/all_muataion_top10.pptx",width=8.7,height=3.7)
+
+
+
+for (cancer_type in names(laml_mc3)) {
+  cat("Cancer Type:", cancer_type, "\n")
+  tp53_data <- laml_mc3[[cancer_type]]@data[laml_mc3[[cancer_type]]@data$Hugo_Symbol == "TP53", ]
+  tp53_mutations <- read.maf(maf = tp53_data)
+  mutation_frequency <- as.data.frame(table(tp53_mutations@data$HGVSp_Short))
+  colnames(mutation_frequency) <- c("Mutation", "Frequency")
+  top10_mutations <- mutation_frequency[order(-mutation_frequency$Frequency), ][1:10, ]
+  print(top10_mutations)
+  write.csv(top10_mutations,paste0("D:/Dafei Chai/P20-mAb-scRNA-seq/Analysis data/analysis/RDS/tcga_lollipot/",cancer_type,"top10_p53_mut.csv"))
+}
+
+
+
+lollipopPlot(maf = laml_mc3[["PAAD"]], gene = "TP53", AACol = "HGVSp_Short",
+             showMutationRate = TRUE,
+             labelPos = c(175,248,196,213,273,282,245,179))
+
+title(main = "Top_10_TP53_Mutations_in_PAAD", line = -0.5)
+
+ggsave(filename = "./analysis/RDS/tcga_lollipot/Top_10_TP53_Mutations_in_PAAD.pdf",width = 8.7,height = 3.7)
+export::graph2ppt(file="./analysis/RDS/tcga_lollipot/Top_10_TP53_Mutations_in_PAAD.pptx",width=8.7,height=3.7)
+
+
+
+
+lollipopPlot(maf = laml_mc3[["BRCA"]], gene = "TP53", AACol = "HGVSp_Short",
+             showMutationRate = TRUE,
+             labelPos = c(175,273,196,193,213,342,220,179,195,248))
+
+title(main = "Top_10_TP53_Mutations_in_BRCA", line = -0.5)
+
+ggsave(filename = "./analysis/RDS/tcga_lollipot/Top_10_TP53_Mutations_in_BRCA.pdf",width = 8.7,height = 3.7)
+export::graph2ppt(file="./analysis/RDS/tcga_lollipot/Top_10_TP53_Mutations_in_BRCA.pptx",width=8.7,height=3.7)
+
+
+
+
+lollipopPlot(maf = laml_mc3[["COAD"]], gene = "TP53", AACol = "HGVSp_Short",
+             showMutationRate = TRUE,
+             labelPos = c(175,248,273,282,213,248,245,159,175))
+
+title(main = "Top_10_TP53_Mutations_in_COAD", line = -0.5)
+
+ggsave(filename = "./analysis/RDS/tcga_lollipot/Top_10_TP53_Mutations_in_COAD.pdf",width = 8.7,height = 3.7)
+export::graph2ppt(file="./analysis/RDS/tcga_lollipot/Top_10_TP53_Mutations_in_COAD.pptx",width=8.7,height=3.7)
+
+
+
+
+lollipopPlot(maf = laml_mc3[["LUAD"]], gene = "TP53", AACol = "HGVSp_Short",
+             showMutationRate = TRUE,
+             labelPos = c(158,245,273,249,205,159,242,298,343,192))
+
+title(main = "Top_10_TP53_Mutations_in_LUAD", line = -0.5)
+
+ggsave(filename = "./analysis/RDS/tcga_lollipot/Top_10_TP53_Mutations_in_LUAD.pdf",width = 8.7,height = 3.7)
+export::graph2ppt(file="./analysis/RDS/tcga_lollipot/Top_10_TP53_Mutations_in_LUAD.pptx",width=8.7,height=3.7)
+
+
+
+lollipopPlot(maf = laml_mc3[["PRAD"]], gene = "TP53", AACol = "HGVSp_Short",
+             showMutationRate = TRUE,
+             labelPos = c(248,245,239,163,141,175,209,282,126))
+
+title(main = "Top_10_TP53_Mutations_in_PRAD", line = -0.5)
+
+ggsave(filename = "./analysis/RDS/tcga_lollipot/Top_10_TP53_Mutations_in_PRAD.pdf",width = 8.7,height = 3.7)
+export::graph2ppt(file="./analysis/RDS/tcga_lollipot/Top_10_TP53_Mutations_in_PRAD.pptx",width=8.7,height=3.7)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

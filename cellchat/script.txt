@@ -1,0 +1,149 @@
+source("C:/data/Dafei/LNP_delivery_project/function/preprocess_data.R")
+source("D:/Dafei Chai/P20-mAb-scRNA-seq/Analysis data/analysis/RDS/function/cellchat_preprocess.R")
+source("C:/data/Dafei/E285K/Figure/part1/cell_cell_comm/function/netAnalysis_signalingchanges_scatter_new.R")
+
+
+
+
+required_libraries <- c("Seurat", "ggsci", "ggplot2", "scRepertoire", "harmony", "scDblFinder","NMF","patchwork",
+                        "BiocParallel", "MAST", "org.Mm.eg.db", "clusterProfiler", "dplyr","CellChat",
+                        "paletteer", "msigdbr","plotly",  "scater", "diffusionMap", "slingshot", "dplyr",
+                        "RColorBrewer", "ggbeeswarm", "ggthemes","Scillus","paletteer","UCell","scGSVA")#,"schex","Nebulosa"
+
+for (lib in required_libraries) {
+  if (!requireNamespace(lib, quietly = TRUE)) {
+    BiocManager::install(lib, dependencies = TRUE)
+  }
+  library(lib, character.only = TRUE)
+}
+
+set.seed(123)
+
+manualcolors<-c("#51236c","#dd5165", "#ceb2c0","#e72128","#e888b4","#b5cdcd","#339aa0","#5163ac",
+                "#155185","#a4a839","#3e3d1a","#e94f9e","#705da9","#231d65","#d6a0c9",
+                "#c8ba8b","#f7c392","#a23726","#4ebdea","#630d18")
+
+
+P20_Ctrl<-load_and_subset("D:/Dafei Chai/P20-mAb-scRNA-seq/Analysis data/analysis/RDS/com_p20_anno.RDS",idents_value = "Control")
+P20_mab<-load_and_subset("D:/Dafei Chai/P20-mAb-scRNA-seq/Analysis data/analysis/RDS/com_p20_anno.RDS",idents_value = "P20")
+
+
+levels(P20_Ctrl)<-c("Neutrophils", "Mast", "Macrophage", "cDC", "pDC", "NK-Prolif","NK-Cyto" ,
+                    "NK-Trans","NK-Term","CD8-Tn","CD8-Tprolif","CD8-Teff","Treg","Tfh",
+                    "NKT","Bcs","B-Prolif","Tumor")
+
+levels(P20_mab)<-c("Neutrophils", "Mast", "Macrophage", "cDC", "pDC", "NK-Prolif","NK-Cyto" ,
+                   "NK-Trans","NK-Term","CD8-Tn","CD8-Tprolif","CD8-Teff","Treg","Tfh",
+                   "NKT","Bcs","B-Prolif","Tumor")
+
+
+
+
+Ctrl<-process_cellchat(P20_Ctrl,"Control",4,5)
+mAb<-process_cellchat(P20_mab,"P20",7,6)
+
+
+Ctrl <- readRDS("./cellchat/Control_cellchat.RDS")
+mAb <- readRDS("./cellchat/P20_cellchat.RDS")
+
+
+
+
+object.list <- list(Ctrl = Ctrl, P20_mAb = mAb)
+
+
+
+cellchat <- mergeCellChat(object.list, add.names = names(object.list))
+
+
+###########cellchat1
+
+num.link <- sapply(object.list, function(x) {rowSums(x@net$count) + colSums(x@net$count)-diag(x@net$count)})
+weight.MinMax <- c(min(num.link), max(num.link)) # control the dot size in the different datasets
+gg <- list()
+for (i in 1:length(object.list)) {
+  gg[[i]] <- netAnalysis_signalingRole_scatter(object.list[[i]], title = names(object.list)[i], weight.MinMax = weight.MinMax,color.use = manualcolors)
+}
+
+patchwork::wrap_plots(plots = gg)
+ggsave("in_and_out_srength.pdf",width = 10,height = 6)
+
+
+
+
+
+gg01 <- netVisual_heatmap(cellchat)
+gg02 <- netVisual_heatmap(cellchat, measure = "weight")
+pdf(file = "./ctrl_p20_cellcell.pdf",width = 10,height = 6)
+gg01 + gg02
+dev.off()
+
+
+gg1 <- netAnalysis_signalingChanges_scatter_new(cellchat, idents.use = "Neutrophils",color.use = c("grey","#5F559B99","#BB002199"))
+gg2 <- netAnalysis_signalingChanges_scatter_new(cellchat, idents.use = "Mast",color.use = c("grey","#5F559B99","#BB002199"))
+gg3 <- netAnalysis_signalingChanges_scatter_new(cellchat, idents.use = "Macrophage",color.use = c("grey","#5F559B99","#BB002199"))
+gg4 <- netAnalysis_signalingChanges_scatter_new(cellchat, idents.use = "cDC",color.use = c("grey","#5F559B99","#BB002199"))
+gg5 <- netAnalysis_signalingChanges_scatter_new(cellchat, idents.use = "pDC",color.use = c("grey","#5F559B99","#BB002199"))
+gg6 <- netAnalysis_signalingChanges_scatter_new(cellchat, idents.use = "NK-Prolif",color.use = c("grey","#5F559B99","#BB002199"))
+gg7 <- netAnalysis_signalingChanges_scatter_new(cellchat, idents.use = "NK-Cyto",color.use = c("grey","#5F559B99","#BB002199"))
+gg8 <- netAnalysis_signalingChanges_scatter_new(cellchat, idents.use = "NK-Trans",color.use = c("grey","#5F559B99","#BB002199"))
+gg9 <- netAnalysis_signalingChanges_scatter_new(cellchat, idents.use = "NK-Term",color.use = c("grey","#5F559B99","#BB002199"))
+gg10 <- netAnalysis_signalingChanges_scatter_new(cellchat, idents.use = "CD8-Tn",color.use = c("grey","#5F559B99","#BB002199"))
+gg11 <- netAnalysis_signalingChanges_scatter_new(cellchat, idents.use = "CD8-Tprolif",color.use = c("grey","#5F559B99","#BB002199"))
+gg12 <- netAnalysis_signalingChanges_scatter_new(cellchat, idents.use = "CD8-Teff",color.use = c("grey","#5F559B99","#BB002199"))
+gg13 <- netAnalysis_signalingChanges_scatter_new(cellchat, idents.use = "Treg",color.use = c("grey","#5F559B99","#BB002199"))
+gg14 <- netAnalysis_signalingChanges_scatter_new(cellchat, idents.use = "Tfh",color.use = c("grey","#5F559B99","#BB002199"))
+gg15 <- netAnalysis_signalingChanges_scatter_new(cellchat, idents.use = "NKT",color.use = c("grey","#5F559B99","#BB002199"))
+gg16 <- netAnalysis_signalingChanges_scatter_new(cellchat, idents.use = "Bcs",color.use = c("grey","#5F559B99","#BB002199"))
+gg17 <- netAnalysis_signalingChanges_scatter_new(cellchat, idents.use = "B-Prolif",color.use = c("grey","#5F559B99","#BB002199"))
+gg18 <- netAnalysis_signalingChanges_scatter_new(cellchat, idents.use = "NKT",color.use = c("grey","#5F559B99","#BB002199"))
+gg19 <- netAnalysis_signalingChanges_scatter_new(cellchat, idents.use = "Tumor",color.use = c("grey","#5F559B99","#BB002199"))
+
+ggp<-patchwork::wrap_plots(plots = list(gg1,gg2,gg3,gg4,gg5,gg6,gg7,gg8,gg9,gg10,gg11,gg12,gg13,gg14,gg15,gg16,gg17,gg18,gg19))
+ggsave(paste0("./","CellChat","_celltypes.pdf"),ggp,width = 28,height = 14)
+
+
+
+netVisual_bubble(cellchat,sources.use = c("cDC","pDC"),targets.use = c("CD8-Tn","CD8-Tprolif","CD8-Teff"), 
+                 signaling = c("PD-L1","CD86","IL10","CD39",
+                               "IFN-II","CXCL","SN","MHC-I",
+                               "MHC-II","CCL","CD6"),remove.isolate = FALSE)
+
+
+
+
+gg1 <- netVisual_bubble(cellchat, sources.use = c("cDC","pDC"),targets.use = c("CD8-Tn","CD8-Tprolif","CD8-Teff","NKT"), 
+                        signaling = c("PD-L1","PDL2","CD86"), 
+                        comparison = c(1, 2), max.dataset = 2, 
+                        title.name = "Increased signaling in Treatment", angle.x = 45, remove.isolate = F)
+
+ggsave(filename = "pdl2_pdl1_CD86_dc-to-CD8T.pdf",plot = gg1,height = 2.75,width=6.2)
+
+gg2 <- netVisual_bubble(cellchat, sources.use = c("cDC","pDC"),targets.use = c("CD8-Tn","CD8-Tprolif","CD8-Teff","NKT"), 
+                        signaling = c("MHC-I","IL10","IFN-II"), 
+                        comparison = c(1, 2), max.dataset = 2, 
+                        title.name = "Increased signaling in Treatment", angle.x = 45, remove.isolate = F)
+
+
+ggsave(filename = "MHCI_dc-to-CD8T.pdf",plot = gg2,height = 5.78,width=8)
+
+
+
+gg3 <- netVisual_bubble(cellchat, sources.use = c("cDC","pDC"),targets.use = c("CD8-Tn","CD8-Tprolif","CD8-Teff","NKT"), 
+                        signaling = c("CXCL","CCL"), 
+                        comparison = c(1, 2), max.dataset = 2, 
+                        title.name = "Increased signaling in Treatment", angle.x = 45, remove.isolate = F)
+
+ggsave(filename = "Cxcl_ccl_dc-to-CD8T.pdf",plot = gg3,height = 3.5,width=6.2)
+
+
+cellchat@meta$datasets = factor(cellchat@meta$datasets, levels = c("Ctrl", "P20_mAb")) 
+gg4<-plotGeneExpression(cellchat, signaling = "CXCL", split.by = "datasets", colors.ggplot = T, type = "violin")
+ggsave(filename = "Cxcl_all_sample.pdf",plot = gg4,height = 4,width=7)
+
+
+cellchat@meta$datasets = factor(cellchat@meta$datasets, levels = c("Ctrl", "P20_mAb"))
+gg5<-plotGeneExpression(cellchat, signaling = "CCL", split.by = "datasets", colors.ggplot = T, type = "violin")
+ggsave(filename = "Ccl_all_sample.pdf",plot = gg5,height = 10,width=10)
+
+

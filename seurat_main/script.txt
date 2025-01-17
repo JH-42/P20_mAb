@@ -1,0 +1,185 @@
+options(Seurat.object.assay.version = 'v3')
+
+required_libraries <- c("Seurat", "ggsci", "ggplot2", "scRepertoire", "harmony", "scDblFinder","MAST",
+                        "BiocParallel", "MAST", "org.Mm.eg.db", "clusterProfiler", "dplyr","limma",
+                        "paletteer", "msigdbr","plotly",  "scater", "diffusionMap", "slingshot", "dplyr",
+                        "RColorBrewer", "ggbeeswarm", "ggthemes","Scillus","paletteer","Nebulosa","scRNAtoolVis")#,"schex","Nebulosa"
+
+# Load libraries
+for (lib in required_libraries) {
+  if (!requireNamespace(lib, quietly = TRUE)) {
+    BiocManager::install(lib, dependencies = TRUE)
+  }
+  library(lib, character.only = TRUE)
+}
+
+set.seed(123)
+
+col18<-c("#e888b4","#e3b3dd","#5163ac","#339aa0","#c8ba8b", "#871719","#96b0c4",
+         "#7ac6ee","#c7e2b7","#8f6f9e","#51236c","#a24d46","#765e9c",
+         "#4ebdea","#f7c392")
+
+col21<-c("#51236c","#dd5165", "#ceb2c0","#e72128","#e888b4","#b5cdcd","#339aa0","#5163ac",
+         "#155185","#a4a839","#3e3d1a","#e94f9e","#705da9","#231d65","#d6a0c9",
+         "#c8ba8b","#f7c392","#a23726","#4ebdea","#630d18")
+
+levels(com_p20) <- c("Neutrophils", "Mast", "Macrophage", "cDC", "pDC", "NK-Prolif","NK-Cyto" , "NK-Trans",
+                     "NK-Term","CD8-Tn","CD8-Tprolif","CD8-Teff","Treg","Th17","Tfh",
+                     "NKT","Bcs","B-Prolif","Tumor")
+
+folders <- list(
+  Ctrl_1 =  "../after_cellbender/Ctrl_1/Ctrl_1_cellbender_output_compressed.h5", 
+  Ctrl_2 =  "../after_cellbender/Ctrl_2/Ctrl_2_cellbender_output_compressed.h5", 
+  Ctrl_3 =  "../after_cellbender/Ctrl_3/Ctrl_3_cellbender_output_compressed.h5", 
+  P20_1  =  "../after_cellbender/P20_1/P20_1_cellbender_output_compressed.h5", 
+  P20_2  =  "../after_cellbender/P20_2/P20_2_cellbender_output_compressed.h5", 
+  P20_3  =  "../after_cellbender/P20_3/P20_3_cellbender_output_compressed.h5"
+)
+
+seurat_objects <- lapply(names(folders), function(name) {
+  data <- Read10X_h5(folders[[name]]) 
+  seurat_obj <- CreateSeuratObject(counts = data,min.cells = 3,min.features = 200)  
+  group <- ifelse(grepl("Ctrl", name), "Control", "P20")
+  seurat_obj$group <- group
+  seurat_obj$sample <- name
+  return(seurat_obj)
+})
+
+
+com_p20 <- merge(seurat_objects[[1]], y = seurat_objects[2:length(seurat_objects)], 
+                 add.cell.ids = names(folders))
+
+ss1<-as.SingleCellExperiment(com_p20)
+ss2 <- scDblFinder(ss1,samples="sample",BPPARAM=SnowParam(12,RNGseed = 123))
+
+table(ss2$scDblFinder.class)
+
+com_p20$scDblFinder.class <- ss2$scDblFinder.class
+
+com_p20<-subset(com_p20,subset=scDblFinder.class %in% "singlet")
+
+com_p20[["percent.mt"]] <- PercentageFeatureSet(com_p20, pattern = "^mt-")
+VlnPlot(com_p20, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3,pt.size = 0.5)
+com_p20 <- subset(com_p20, subset = nFeature_RNA > 200 & nFeature_RNA < 6000 & nCount_RNA > 500 & nCount_RNA < 50000 & percent.mt < 15)
+
+
+head(com_p20@meta.data)
+
+com_p20
+
+com_p20 <- NormalizeData(com_p20)
+
+com_p20 <- FindVariableFeatures(com_p20, selection.method = "vst", nfeatures = 2000)
+
+all.genes <- rownames(com_p20)
+
+com_p20 <- ScaleData(com_p20, features = all.genes)
+
+com_p20 <- RunPCA(com_p20, features = VariableFeatures(object = com_p20))
+
+com_p20 <- RunHarmony(com_p20, group.by.vars = "group", reduction.use = "pca")
+
+com_p20 <- RunUMAP(com_p20, dims = 1:30, reduction = "harmony")
+
+com_p20 <- FindNeighbors(com_p20, reduction = "harmony", dims = 1:30,k.param = 40)
+
+com_p20 <- FindClusters(com_p20, resolution = 0.5, algorithm=1)
+
+DimPlot(com_p20, reduction = "umap", label = TRUE, pt.size = 0.5) +scale_color_d3("category20")+ NoLegend()
+
+DimPlot(com_p20, 
+        reduction = "umap", 
+        label = TRUE, 
+        pt.size = 0.5,
+        split.by = "group") +scale_color_d3("category20")+ NoLegend()
+
+com_p20<-subset(com_p20,idents=c(0:16,18))# cluster 17 had more no specific marker, so we think it should be a polution celltype
+FeaturePlot(com_p20,features = c("Cd19","Cd4","Cd8a","Nkg7",
+                                 "S100a8","Ptprc","Cd14","Xbp1",
+                                 "Il17","Mki67","Ptprc"),)
+
+
+
+
+cluster.ids <- c("NK-Cyto", "Neutrophils", "Bcs", "Macrophage", "CD8-Teff", "CD8-Tn","CD8-Tprolif",
+                 "NKT","NK-Prolif","NK-Trans","Treg","Tfh","Tumor","cDC","NK-Term","B-Prolif","Mast","pDC")
+
+names(cluster.ids) <- levels(com_p20)
+
+com_p20 <- RenameIdents(com_p20, cluster.ids)
+
+levels(com_p20) <- c("Neutrophils", "Mast", "Macrophage", "cDC", "pDC", "NK-Prolif","NK-Cyto" ,
+                     "NK-Trans","NK-Term","CD8-Tn","CD8-Tprolif","CD8-Teff","Treg","Tfh",
+                     "NKT","Bcs","B-Prolif","Tumor")
+com_p20$new.cell<-Idents(com_p20)
+Idents(com_p20)<-"new.cell"
+
+DotPlot(com_p20,features=c("Ptprc","Mki67","Fcgr3","S100a9","Cma1","Tpsb2","Itgam","Cd14","Cd74","H2-Ab1",
+                           "Spi1","Tcf4","Ccr9","Ly6d","Nkg7","Gzmb","Cd27","Gzmc","Mcm3","Mcm5","Mcm6","Sell",
+                           "Gzmg","Gzmd","Gzmf","Gzme","Ccr7","Cd8a","Cd3g","Cd3e","Pdcd1","Ctla4","Tnfrsf4",
+                           "Ikzf2","Cd40lg","Icos","Bcl6",
+                           "Cd19","Ms4a1","Igfbp4","Serpinh1","Satb2"),
+        cols = c("#D3CAB7","navy"))+theme(axis.text.x = element_text(angle = 90,  hjust = 1))
+ggsave(filename = "cell_specific_marker.pdf",width = 11.2,height=5.7)
+
+
+DimPlot(com_p20, reduction = "umap", label = TRUE, pt.size = 0.5) +scale_color_manual(values = col21)+ NoLegend()
+ggsave(filename = "umap_label.pdf",width = 5.5,height=5.5)
+
+DimPlot(com_p20, reduction = "umap", label = F, pt.size = 0.5) +scale_color_manual(values = col21)+ NoLegend()
+ggsave(filename = "umap_nolabel.pdf",width = 5.5,height=5.5)
+
+DimPlot(com_p20, 
+        reduction = "umap", 
+        label = TRUE, 
+        pt.size = 0.5,
+        split.by = "group") +scale_color_manual(values = col21)+ NoLegend()
+ggsave(filename = "umap_group.pdf",width = 10,height=5.5)
+
+
+
+
+cell.prop<- as.data.frame(prop.table(table(com_p20@meta.data$new.cell,com_p20@meta.data$group)))
+cell.prop$Freq<-cell.prop$Freq*100  
+colnames(cell.prop)<-c("clusters","type","Percentages")
+# levels(cell.prop$clusters)<-cluster.levels
+
+ct1<-ggplot(cell.prop,aes(type,Percentages,fill=clusters))+
+  geom_bar(stat = "identity",position="fill")+
+  ggtitle("")+
+  theme_bw()+
+  theme(axis.ticks.length=unit(0.5,"cm"))+
+  guides(fill=guide_legend(title=NULL))+scale_fill_manual(values = col21)
+ggsave(filename="5_cellproportion.pdf",ct1,width=4,height=5)
+
+ct2<-ggplot(cell.prop,aes(clusters,Percentages,fill=type))+
+  geom_bar(stat = "identity",position="fill")+
+  ggtitle("")+
+  theme_bw()+
+  theme(axis.ticks.length=unit(0.5,"cm"))+
+  guides(fill=guide_legend(title=NULL))+scale_fill_manual(values = c("#5F559B99","#BB002199"))+ RotatedAxis()
+ggsave(filename="5_cellproportion_2.pdf",ct2,width=8,height=6)
+
+ct3 <- ggplot(cell.prop, aes(clusters, Percentages, fill = type)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  ggtitle("") +
+  theme_bw() +
+  RotatedAxis() +
+  theme(axis.ticks.length = unit(0.5, "cm"),panel.grid.major =element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank()) +
+  guides(fill = guide_legend(title = NULL)) +
+  scale_fill_manual(values = c("#5F559B99","#BB002199"))
+
+ggsave(filename="5_cellproportion_3.pdf",ct3,width=8,height=6)
+
+mm<-FindAllMarkers(com_p20,only.pos = T,logfc.threshold = 0.5,min.pct = 0.2,test.use = "wilcox_limma")
+write.csv(mm,"com_p20_marker.csv")
+
+Idents(com_p20)<-"group"
+mm<-FindMarkers(com_p20,only.pos = T,ident.1 = "P20",ident.2="Control",logfc.threshold = 0.5,min.pct = 0.2,test.use = "wilcox_limma")
+write.csv(mm,"A20vsCtrl.csv")
+Idents(com_p20)<-"seurat_clusters"
+
+saveRDS(com_p20,"com_p20_anno.RDS")
+
+
+

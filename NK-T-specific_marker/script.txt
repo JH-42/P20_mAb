@@ -1,0 +1,95 @@
+
+plot_measure1 <- function(dataset, 
+                          measures, 
+                          group_by,
+                          split_by = NA,
+                          pal_setup = 'Set2',
+                          plot_type = "combined",colors=pal_d3("category20")(20)[1:20]) {
+  
+  if (is.data.frame(pal_setup)) {
+    pal <- pal_setup[pal_setup[[1]] == group_by,][[2]]
+  } else {
+    pal <- pal_setup
+  }
+  
+  colors <- colors
+  
+  split_by <- ifelse(split_by == "No Split", NA, split_by)
+  
+  l <- get_measure_data(dataset = dataset,
+                        measures = measures,
+                        return_df = FALSE)
+  
+  df <- l[[1]]
+  measures <- l[[2]]
+  
+  p <- list()
+  
+  a <- ifelse(plot_type == "box", 1, 0.2)
+  
+  for (i in seq_along(1:length(measures))) {
+    
+    p[[i]] <- ggplot(df, aes(x = .data[[group_by]],
+                             y = .data[[measures[i]]],
+                             colour = .data[[group_by]])) +  # Using colour aesthetic here
+      scale_color_manual(values = colors) +
+      {if (plot_type != "box") geom_violin()} +
+      {if (plot_type != "violin") geom_boxplot(fill = NA,outlier.shape = NA, lwd=1,alpha = a)} +  # Making fill transparent
+      geom_jitter(width = 0.2, size = 1.2, aes(color = .data[[group_by]])) +  # Adding points
+      theme(legend.position = "none") +
+      labs(x = group_by, y = NULL) +
+      {if (!is.na(split_by)) facet_wrap(as.formula(paste0("~", split_by)), nrow = 1)} +
+      ggtitle(measures[i])
+  }
+  patchwork::wrap_plots(p)
+}
+
+
+
+plot_and_save <- function(dataset, measures, folder_name, colors = NULL,outdir="./") {
+  plot <- plot_measure1(dataset = dataset, 
+                        measures = measures, 
+                        split_by = "group",
+                        group_by = "new.cell",
+                        pal_setup = color_palette,
+                        plot_type = "box",
+                        colors = colors) + theme_bw() +
+    RotatedAxis() +
+    theme(axis.ticks.length = unit(0.5, "cm"),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.background = element_blank())
+  
+  ggsave(paste0(outdir, folder_name,"_", measures, ".pdf"), plot, width = 12, height = 6)
+}
+
+p20_t@assays$integrated <- p20_t@assays$RNA
+p20_nk@assays$integrated <- p20_nk@assays$RNA
+
+datasets <- list(p20_t,p20_nk)
+
+names(datasets) <- c("T_cells", "NK_cells")
+
+col<-c("#51236c","#dd5165", "#ceb2c0","#e72128","#e888b4","#b5cdcd","#339aa0","#5163ac",
+         "#155185","#a4a839","#3e3d1a","#e94f9e","#705da9","#231d65","#d6a0c9",
+         "#c8ba8b","#f7c392","#a23726","#4ebdea","#630d18")
+
+# "Neutrophils", "Mast", "Macrophage", "cDC", "pDC", "NK-Prolif","NK-Cyto" , "NK-Trans",
+#                      "NK-Term","CD8-Tn","CD8-Tprolif","CD8-Teff","Treg","Th17","Tfh",
+#                      "NKT","Bcs","B-Prolif","Tumor"
+
+
+colors_list <- list(col[c(10,11,12,16)], col[6:9])
+
+
+measures_vec <- c("Tcf7", "Id3", "Tox", "Prdm1", "Eomes", "Cxcr3", "Sell", "Slamf6", 
+                  "Cx3cr1", "Il7r", "Ifng", "Gzmb", "Prf1", "Tnf", "Cxcr6", 
+                  "Pdcd1", "Lag3", "Havcr2", "Tigit", "Ctla4")
+
+color_palette <- pal_d3("category20")(20)
+
+for(i in 1:length(datasets)) {
+  for(measure in measures_vec) {
+    plot_and_save(datasets[[i]], measure, names(datasets)[i], colors = colors_list[[i]])
+  }
+}

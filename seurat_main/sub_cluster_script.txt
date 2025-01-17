@@ -1,0 +1,50 @@
+
+library(Seurat)
+library(harmony)
+
+P20<-readRDS("./com_p20_anno.RDS")
+
+p20_nk<-subset(P20,idents=c("NK-Prolif","NK-Cyto","NK-Trans","NK-Term"))
+
+p20_t<-subset(P20,idents=c("CD8-Tn", "CD8-Tprolif","CD8-Teff","Treg","Th17","Tfh","NKT"))
+
+rm(P20)
+
+
+sub_process<-function(x){
+  x <- NormalizeData(x)
+  x <- FindVariableFeatures(x, selection.method = "vst", nfeatures = 2000)
+  all.genes <- rownames(x)
+  x <- ScaleData(x, features = all.genes)
+  x <- RunPCA(x, features = VariableFeatures(object = x))
+  x <- RunHarmony(x, group.by.vars = "group", reduction.use = "pca")
+  x <- RunUMAP(x, dims = 1:30, reduction = "harmony")
+  x <- FindNeighbors(x, reduction = "harmony", dims = 1:30,k.param = 40)
+  x <- FindClusters(x, resolution = 0.5, algorithm=1)
+}
+
+p20_nk<-sub_process(p20_nk)
+
+p20_t<-sub_process(p20_t)
+
+
+p20_nk <- FindClusters(p20_nk, resolution = 0.3, algorithm=1)
+
+DimPlot(p20_nk)
+
+
+p20_t <- FindClusters(p20_t, resolution = 0.1, algorithm=1)
+
+DimPlot(p20_t)
+
+FeaturePlot(p20_t,features = c("Cd4","Cd8a"))
+
+
+
+
+
+
+
+
+
+

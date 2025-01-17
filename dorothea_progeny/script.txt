@@ -1,0 +1,245 @@
+options(Seurat.object.assay.version = 'v3')
+
+
+library(Seurat)
+library(decoupleR)
+
+library(dplyr)
+library(tibble)
+library(tidyr)
+library(patchwork)
+library(ggplot2)
+library(pheatmap)
+
+P20<-readRDS("./com_p20_anno.RDS")
+
+Idents(P20)<-"new.cell"
+
+p20_nk<-subset(P20,idents=c("NK-Prolif","NK-Cyto","NK-Trans","NK-Term"))
+
+p20_t<-subset(P20,idents=c("CD8-Tn", "CD8-Tprolif","CD8-Teff","NKT"))
+
+rm(P20)
+
+p20_t$celltype.stim <- paste(p20_t$new.cell, p20_t$group, sep = "_")
+
+p20_nk$celltype.stim <- paste(p20_nk$new.cell, p20_nk$group, sep = "_")
+
+
+Idents(p20_t) <- "celltype.stim"
+
+
+Idents(p20_nk) <- "celltype.stim"
+
+
+net <- get_progeny(organism = 'mouse', top = 500)
+
+TF_net <- get_collectri(organism='mouse', split_complexes=FALSE)
+
+#####T cells pathway
+mat <- as.matrix(p20_t@assays$RNA@data)
+
+
+acts <- run_mlm(mat=mat, net=net, .source='source', .target='target',
+                .mor='weight', minsize = 5)
+acts
+
+
+p20_t[['pathwaysmlm']] <- acts %>%
+  pivot_wider(id_cols = 'source', names_from = 'condition',
+              values_from = 'score') %>%
+  column_to_rownames('source') %>%
+  Seurat::CreateAssayObject(.)
+
+DefaultAssay(object = p20_t) <- "pathwaysmlm"
+
+p20_t <- ScaleData(p20_t)
+p20_t@assays$pathwaysmlm@data <- p20_t@assays$pathwaysmlm@scale.data
+
+saveRDS(p20_t,"p20_CD8t_progeny.RDS")
+
+##T cells TF
+# net <- get_progeny(organism = 'mouse', top = 500)
+
+TF_net <- get_collectri(organism = 'mouse', 
+                        split_complexes = FALSE)
+
+
+mat <- as.matrix(p20_t@assays$RNA@data)
+
+acts <- decoupleR::run_ulm(mat = mat, 
+                           net = TF_net, 
+                           .source = 'source', 
+                           .target = 'target',
+                           .mor='mor', 
+                           minsize = 5)
+
+
+p20_t[['tfsulm']] <- acts %>%
+  tidyr::pivot_wider(id_cols = 'source', 
+                     names_from = 'condition',
+                     values_from = 'score') %>%
+  tibble::column_to_rownames('source') %>%
+  Seurat::CreateAssayObject(.)
+
+DefaultAssay(object = p20_t) <- "tfsulm"
+
+p20_t <- Seurat::ScaleData(p20_t)
+p20_t@assays$tfsulm@data <- p20_t@assays$tfsulm@scale.data
+
+
+n_tfs <- 25
+
+df <- t(as.matrix(p20_t@assays$tfsulm@data)) %>%
+  as.data.frame() %>%
+  dplyr::mutate(cluster = Seurat::Idents(p20_t)) %>%
+  tidyr::pivot_longer(cols = -cluster, 
+                      names_to = "source", 
+                      values_to = "score") %>%
+  dplyr::group_by(cluster, source) %>%
+  dplyr::summarise(mean = mean(score))
+
+tfs <- df %>%
+  dplyr::group_by(source) %>%
+  dplyr::summarise(std = stats::sd(mean)) %>%
+  dplyr::arrange(-abs(std)) %>%
+  head(n_tfs) %>%
+  dplyr::pull(source)
+
+top_acts_mat <- df %>%
+  dplyr::filter(source %in% tfs) %>%
+  tidyr::pivot_wider(id_cols = 'cluster', 
+                     names_from = 'source',
+                     values_from = 'mean') %>%
+  tibble::column_to_rownames('cluster') %>%
+  as.matrix()
+
+colors <- rev(RColorBrewer::brewer.pal(n = 11, name = "RdBu"))
+colors.use <- grDevices::colorRampPalette(colors = colors)(100)
+
+my_breaks <- c(seq(-2, 0, length.out = ceiling(100 / 2) + 1),
+               seq(0.05, 2, length.out = floor(100 / 2)))
+
+pheatmap::pheatmap(mat = top_acts_mat,
+                   color = colors.use,
+                   border_color = "white",
+                   breaks = my_breaks,
+                   cellwidth = 15,
+                   cellheight = 15,
+                   treeheight_row = 20,
+                   treeheight_col = 20) 
+
+
+saveRDS(p20_t,"p20_CD8t_TF.RDS")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#####NK cells pathway
+mat <- as.matrix(p20_nk@assays$RNA@data)
+
+
+acts <- run_mlm(mat=mat, net=net, .source='source', .target='target',
+                .mor='weight', minsize = 5)
+acts
+
+
+p20_nk[['pathwaysmlm']] <- acts %>%
+  pivot_wider(id_cols = 'source', names_from = 'condition',
+              values_from = 'score') %>%
+  column_to_rownames('source') %>%
+  Seurat::CreateAssayObject(.)
+
+
+DefaultAssay(object = p20_nk) <- "pathwaysmlm"
+
+
+p20_nk <- ScaleData(p20_nk)
+p20_nk@assays$pathwaysmlm@data <- p20_nk@assays$pathwaysmlm@scale.data
+
+saveRDS(p20_nk,"p20_nk_progeny.RDS")
+
+acts <- run_mlm(mat=mat, net=TF_net, .source='source', .target='target',
+                .mor='mor', minsize = 0)
+acts
+
+p20_nk[['tfsulm']] <- acts %>%
+  pivot_wider(id_cols = 'source', names_from = 'condition',
+              values_from = 'score') %>%
+  column_to_rownames('source') %>%
+  Seurat::CreateAssayObject(.)
+
+
+DefaultAssay(object = p20_nk) <- "tfsulm"
+
+
+p20_nk <- ScaleData(p20_nk)
+p20_nk@assays$tfsulm@data <- p20_nk@assays$tfsulm@scale.data
+
+
+saveRDS(p20_nk,"p20_nk_TF.RDS")
+
+
+
+#p20_nk  p20_t
+df <- t(as.matrix(p20_nk@assays$pathwaysmlm@data)) %>%
+  as.data.frame() %>%
+  dplyr::mutate(cluster = Seurat::Idents(p20_nk)) %>%
+  tidyr::pivot_longer(cols = -cluster, 
+                      names_to = "source", 
+                      values_to = "score") %>%
+  dplyr::group_by(cluster, source) %>%
+  dplyr::summarise(mean = mean(score))
+
+top_acts_mat <- df %>%
+  tidyr::pivot_wider(id_cols = 'cluster', 
+                     names_from = 'source',
+                     values_from = 'mean') %>%
+  tibble::column_to_rownames(var = 'cluster') %>%
+  as.matrix()
+
+
+colors <- rev(RColorBrewer::brewer.pal(n = 11, name = "RdBu"))
+colors.use <- grDevices::colorRampPalette(colors = colors)(100)
+
+my_breaks <- c(seq(-1.25, 0, length.out = ceiling(100 / 2) + 1),
+               seq(0.05, 1.25, length.out = floor(100 / 2)))
+
+
+pheatmap::pheatmap(mat = top_acts_mat[c("CD8-Teff_Control","CD8-Teff_P20",
+                                        "CD8-Tn_Control","CD8-Tn_P20",
+                                        "CD8-Tprolif_Control","CD8-Tprolif_P20",
+                                        "NKT_Control","NKT_P20"),],
+                   color = colors.use,
+                   border_color = "white",
+                   breaks = my_breaks,
+                   cellwidth = 20,cluster_rows = F,
+                   cellheight = 20,
+                   treeheight_row = 20,
+                   treeheight_col = 20) 
+
+
+
+pheatmap::pheatmap(mat = top_acts_mat[c("NK-Prolif_Control","NK-Prolif_P20",
+                                        "NK-Trans_Control","NK-Trans_P20",
+                                        "NK-Cyto_Control","NK-Cyto_P20",
+                                        "NK-Term_Control","NK-Term_P20"),],
+                   color = colors.use,
+                   border_color = "white",
+                   breaks = my_breaks,
+                   cellwidth = 20,cluster_rows = F,
+                   cellheight = 20,
+                   treeheight_row = 20,
+                   treeheight_col = 20) 
+
+

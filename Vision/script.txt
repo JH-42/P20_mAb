@@ -1,0 +1,185 @@
+options(Seurat.object.assay.version = 'v3')
+library(Seurat)
+library(VISION)
+library(scGSVA)
+setwd("D:/Dafei Chai/P20-mAb-scRNA-seq/Analysis data/analysis/RDS/Vision")
+
+ss<-readRDS("D:/Dafei Chai/P20-mAb-scRNA-seq/Analysis data/analysis/RDS/com_p20_anno.RDS")
+Idents(ss)<-"new.cell"
+ss_T<-subset(ss,idents=c("CD8-Tn","CD8-Tprolif","CD8-Teff","Treg","Tfh","NKT"))
+
+ss_DC<-subset(ss,idents=c("cDC", "pDC"))
+
+
+Mmgo<-buildAnnot(species="mouse",keytype="SYMBOL",anntype="GO")
+MmKg<-buildAnnot(species="mouse",keytype="SYMBOL",anntype="KEGG")
+
+Idents(ss_T)<-"group"
+Idents(ss_DC)<-"group"
+
+ss_T$celltype.stim <- paste(ss_T$new.cell, ss_T$group, sep = "_")
+Idents(ss_T) <- "celltype.stim"
+
+ss_DC$celltype.stim <- paste(ss_DC$new.cell, ss_DC$group, sep = "_")
+Idents(ss_DC) <- "celltype.stim"
+
+
+##########GSVA T cells
+
+
+
+ss_T_GO<-Vision(ss_T@assays$RNA$counts, signatures ="./m5.all.v2024.1.Mm.symbols.gmt")
+ss_T_GO_vis <- analyze(ss_T_GO)
+saveRDS(ss_T_GO_vis,"Tcs_vision.RDS")
+
+ss_T_go_sigscore<-getSignatureScores(ss_T_GO_vis)
+
+
+ss_T_go_seu<-CreateSeuratObject(counts = t(ss_T_go_sigscore))
+
+ss_T_Avg<-AverageExpression(ss_T_go_seu,return.seurat = T)
+
+saveRDS(ss_T_Avg,"Tcs_Avg.RDS")
+
+tt<-ss_T_Avg@assays$RNA$data
+
+tt<-as.data.frame(tt)
+filtered_df <- tt[grep("T-CELL-RECEPTOR|T-CELL-MEDIATED-CYTOTOXICITY|NATURAL-KILLER-CELL-MEDIATED-CYTOTOXICITY", rownames(tt)),]
+filtered_df1 <- tt[grep("MHC-CLASS-I", rownames(tt)),]
+filtered_df2 <- tt[grep("MHC-CLASS-II", rownames(tt)),]
+filtered_df3<-filtered_df1[-which(row.names(filtered_df2) %in% rownames(tt)),]#MHCI
+
+
+
+
+pdf(file = "./T_TCR_cytotoxic.pdf",width = 10,height = 6)
+pheatmap::pheatmap(filtered_df,scale = "row",cluster_rows = T,cluster_cols = F,treeheight_row = 7,
+                   color = colorRampPalette(c("navy", "white", "firebrick3"))(100))
+dev.off()
+
+pdf(file ="./T_MHCII.pdf",width = 10,height = 8)
+pheatmap::pheatmap(filtered_df2,scale = "row",cluster_rows = T,cluster_cols = F,treeheight_row = 7,
+                   color = colorRampPalette(c("navy", "white", "firebrick3"))(100))
+dev.off()
+
+pdf(file ="C:/data/Dafei/LNP_delivery_project/result/sct_harmony/gsva/T_MHCI.pdf",width = 10,height = 12)
+pheatmap::pheatmap(filtered_df3,scale = "row",cluster_rows = T,cluster_cols = F,treeheight_row = 7,
+                   color = colorRampPalette(c("navy", "white", "firebrick3"))(100))
+dev.off()
+
+
+
+
+##########vision T_cluster cells
+
+ss_T_go_seu<-CreateSeuratObject(counts = t(ss_T_go_sigscore))
+
+ss_T_go_seu<-AddMetaData(object = ss_T_go_seu,metadata = ss@meta.data)
+
+ss_T_go_seu$celltype.stim <- paste(ss_T_go_seu$new.cell, ss_T_go_seu$group, sep = "_")
+
+Idents(ss_T_go_seu) <- "celltype.stim"
+
+levels(ss_T_go_seu) <- c("CD8-Tn_Control", "CD8-Tn_P20", 
+                         "CD8-Tprolif_Control", "CD8-Tprolif_P20", 
+                         "CD8-Teff_Control", "CD8-Teff_P20", 
+                         "Treg_Control", "Treg_P20", 
+                         "Tfh_Control", "Tfh_P20", 
+                         "NKT_Control", "NKT_P20")
+
+
+
+
+ss_T_Avg<-AverageExpression(ss_T_go_seu,return.seurat = T)
+
+saveRDS(ss_T_Avg,"Tcs_Avg_cluster_stim.RDS")
+
+tt<-ss_T_Avg@assays$RNA$data
+
+tt<-as.data.frame(tt)
+filtered_df <- tt[grep("T-CELL-RECEPTOR|T-CELL-MEDIATED-CYTOTOXICITY|NATURAL-KILLER-CELL-MEDIATED-CYTOTOXICITY", rownames(tt)),]
+filtered_df1 <- tt[grep("MHC-CLASS-I", rownames(tt)),]
+filtered_df2 <- tt[grep("MHC-CLASS-II", rownames(tt)),]
+filtered_df3<-filtered_df1[-which(row.names(filtered_df2) %in% rownames(tt)),]#MHCI
+
+
+
+
+pheatmap::pheatmap(filtered_df,scale = "row",cluster_rows = T,cluster_cols = F,treeheight_row = 7,
+                   color = colorRampPalette(c("navy", "white", "firebrick3"))(100))
+ggplot2::ggsave(filename = "./T_TCR_cytotoxic_cell_stim.pdf",width = 15,height = 6)
+
+
+
+pheatmap::pheatmap(filtered_df1,scale = "row",cluster_rows = T,cluster_cols = F,treeheight_row = 7,
+                   color = colorRampPalette(c("navy", "white", "firebrick3"))(100))
+ggplot2::ggsave(filename = "./T_MHCII_cell_stim.pdf",width = 15,height = 6)
+
+
+pheatmap::pheatmap(filtered_df3,scale = "row",cluster_rows = T,cluster_cols = F,treeheight_row = 7,
+                   color = colorRampPalette(c("navy", "white", "firebrick3"))(100))
+ggplot2::ggsave(filename = "./T_MHCI_cell_stim.pdf",width = 15,height = 6)
+
+
+
+
+
+##########vision DC_cluster cells
+
+ss_T_GO<-Vision(ss_DC@assays$RNA$counts, signatures ="./m5.all.v2024.1.Mm.symbols.gmt")
+ss_T_GO_vis <- analyze(ss_T_GO)
+saveRDS(ss_T_GO_vis,"DCs_vision.RDS")
+
+ss_T_go_sigscore<-getSignatureScores(ss_T_GO_vis)
+
+ss_T_go_seu<-CreateSeuratObject(counts = t(ss_T_go_sigscore))
+
+ss_T_go_seu<-AddMetaData(object = ss_T_go_seu,metadata = ss@meta.data)
+
+ss_T_go_seu$celltype.stim <- paste(ss_T_go_seu$new.cell, ss_T_go_seu$group, sep = "_")
+
+Idents(ss_T_go_seu) <- "celltype.stim"
+
+levels(ss_T_go_seu) <- c("cDC_Control", "cDC_P20", 
+                         "pDC_Control", "pDC_P20")
+
+
+
+
+ss_T_Avg<-AverageExpression(ss_T_go_seu,return.seurat = T)
+
+saveRDS(ss_T_Avg,"DCs_Avg_cluster_stim.RDS")
+
+tt<-ss_T_Avg@assays$RNA$data
+
+tt<-as.data.frame(tt)
+
+filtered_df1 <- tt[grep("MHC-CLASS-I", rownames(tt)),]
+filtered_df2 <- tt[grep("MHC-CLASS-II", rownames(tt)),]
+filtered_df3<-filtered_df1[-which(row.names(filtered_df2) %in% rownames(tt)),]#MHCI
+
+
+
+
+pheatmap::pheatmap(filtered_df1,scale = "row",cluster_rows = T,cluster_cols = F,treeheight_row = 7,
+                   color = colorRampPalette(c("navy", "white", "firebrick3"))(100))
+ggplot2::ggsave(filename = "./T_TCR_cytotoxic_cell_stim.pdf",width = 15,height = 6)
+
+
+
+pheatmap::pheatmap(filtered_df1,scale = "row",cluster_rows = T,cluster_cols = F,treeheight_row = 7,
+                   color = colorRampPalette(c("navy", "white", "firebrick3"))(100))
+ggplot2::ggsave(filename = "./T_MHCII_cell_stim.pdf",width = 15,height = 6)
+
+
+pheatmap::pheatmap(filtered_df3,scale = "row",cluster_rows = T,cluster_cols = F,treeheight_row = 7,
+                   color = colorRampPalette(c("navy", "white", "firebrick3"))(100))
+ggplot2::ggsave(filename = "./T_MHCI_cell_stim.pdf",width = 15,height = 6)
+
+
+
+
+
+
+
+
