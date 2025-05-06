@@ -6,6 +6,10 @@
 #SBATCH --mem=60G
 #SBATCH --cpus-per-task=12
 
+###library(DropletUtils)
+###imm<-readRDS("./")
+###write10xCounts(x = imm@assays$RNA@counts, path = "./raw", version="3")
+###write.table(imm@meta.data, file.path("./raw", 'metadata'), sep='\t', quote=F)
 
 
 /mount/gfs/jwang/A20/cytosig/CytoSig/CytoSig/CytoSig_run.py \
