@@ -1,25 +1,3 @@
-#' Load required packages
-#' @import Seurat
-#' @import ggsci
-#' @import ggplot2
-#' @import scRepertoire
-#' @import harmony
-#' @import scDblFinder
-#' @import ggpubr
-#' @import cowplot
-
-#' Preprocess the data
-#' @param sample1_dir Directory containing Sample 1 data
-#' @param sample2_dir Directory containing Sample 2 data
-#' @param project_name Name of the Seurat project
-#' @param n_features Number of variable features to select
-#' @param dims_for_pca Dimensions to use for PCA
-#' @param group_var Group variable for RunHarmony
-#' @param resolution Resolution for FindClusters
-#' @param plot_file  File path to save plot
-#' @return Seurat object with preprocessed data
-
-
 preprocess_data <- function(sample1_dir, sample2_dir, project_name, n_features = 2000,
                            dims_for_cluster = 1:30, group_var = "stim",
                             resolution = 0.5, plot_file = "../Figure/part1/") {
@@ -252,3 +230,4 @@ preprocess_data <- function(sample1_dir, sample2_dir, project_name, n_features =
 
   return(results)
 }
+
