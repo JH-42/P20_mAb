@@ -1,6 +1,9 @@
 # P20_mAb
 Single-cell RNAseq and public data analysis scripts of P20_mAb
 
+OS：RedHat / Windows 11
+
+R 4.3.1 / Python 3.9.0b5
 scDblFinder v1.14.0  
 Seurat v4.4.0  
 Harmony 0.1.1  
