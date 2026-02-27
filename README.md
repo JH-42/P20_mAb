@@ -5,6 +5,14 @@ Single-cell RNAseq and public data analysis scripts of P20_mAb
 Windows 11  
 RedHat Enterprise Linux 9.6  
 
+##Installation guide  
+All packages and tools are installed following their official documentation. Please ensure the versions match those listed in the # Packages version section to maintain compatibility.  
+
+Linux Tools (Conda): Install CellBender, CoNGA, and CytoSig using their respective official Python/Conda guides.  
+
+R Packages (CRAN/BiocManager/GitHub): Use standard install.packages(), BiocManager::install(), or devtools::install_github() for the R-based tools.  
+
+
 #Instructions for use  
 This repository is organized by analysis modules. All processing steps and analysis logic are contained within the scripts located in their respective functional folders.  
 
