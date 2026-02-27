@@ -1,11 +1,11 @@
 # P20_mAb
 Single-cell RNAseq and public data analysis scripts of P20_mAb
 
-#System requirements  
+**#System requirements**  
 Windows 11  
 RedHat Enterprise Linux 9.6  
 
-##Installation guide  
+**#Installation guide**  
 All packages and tools are installed following their official documentation. Please ensure the versions match those listed in the # Packages version section to maintain compatibility.  
 
 Linux Tools (Conda): Install CellBender, CoNGA, and CytoSig using their respective official Python/Conda guides.  
@@ -13,10 +13,10 @@ Linux Tools (Conda): Install CellBender, CoNGA, and CytoSig using their respecti
 R Packages (CRAN/BiocManager/GitHub): Use standard install.packages(), BiocManager::install(), or devtools::install_github() for the R-based tools.  
 
 
-#Instructions for use  
+**#Instructions for use**  
 This repository is organized by analysis modules. All processing steps and analysis logic are contained within the scripts located in their respective functional folders.  
 
-#Packages version  
+**#Packages version**  
 CellRanger Count v8.0.1  
 Cell Ranger V(D)J v8.0.0  
 CellBender v0.3.0  
