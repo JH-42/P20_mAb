@@ -1,9 +1,10 @@
 # P20_mAb
 Single-cell RNAseq and public data analysis scripts of P20_mAb
 
-OS：RedHat Enterprise Linux(THEL) 9.5 / Windows 11
-
-R 4.3.1, R 4.4.1 / Python 3.9.0 (for phateR), Python 3.7.12 (for cellbender), Python 3.10.18 (for cytosig), Python 3.9.12 (for CoNGA)
+#Packages version
+CellRanger Count v8.0.1  
+Cell Ranger V(D)J v8.0.0  
+CellBender v0.3.0  
 scDblFinder v1.14.0  
 Seurat v4.4.0  
 Harmony 0.1.1  
