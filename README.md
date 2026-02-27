@@ -1,9 +1,12 @@
 # P20_mAb
 Single-cell RNAseq and public data analysis scripts of P20_mAb
 
-#System requirements
-Windows 11
-RedHat Enterprise Linux 9.6
+#System requirements  
+Windows 11  
+RedHat Enterprise Linux 9.6  
+
+#Instructions for use  
+This repository is organized by analysis modules. All processing steps and analysis logic are contained within the scripts located in their respective functional folders.  
 
 #Packages version  
 CellRanger Count v8.0.1  
